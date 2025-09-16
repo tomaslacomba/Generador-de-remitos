@@ -60,18 +60,31 @@ function App() {
     doc.text('TOTAL', 150, 78);
     doc.line(10, 80, 200, 80);
     let y = 88;
-    productos.forEach((prod) => {
-      const cantidad = prod.cantidad ? prod.cantidad : '';
-      const descripcion = prod.descripcion ? prod.descripcion : '';
-      const precio = prod.precio ? parseFloat(prod.precio) : 0;
-      const total = prod.cantidad && prod.precio ? (parseFloat(prod.cantidad) * precio) : '';
-      doc.text(String(cantidad), 20, y);
-      doc.text(descripcion, 50, y);
-      doc.text(precio ? `$${precio.toFixed(2)}` : '', 110, y);
-      doc.text(total ? `$${total.toFixed(2)}` : '', 150, y);
-      doc.line(10, y + 2, 200, y + 2);
-      y += 10;
-    });
+      productos.forEach((prod) => {
+        const cantidad = prod.cantidad ? prod.cantidad : '';
+        const descripcion = prod.descripcion ? prod.descripcion : '';
+        const precio = prod.precio ? parseFloat(prod.precio) : 0;
+        const total = prod.cantidad && prod.precio ? (parseFloat(prod.cantidad) * precio) : '';
+        // Usar splitTextToSize para dividir la descripción según el ancho disponible (55mm)
+        const descLines = doc.splitTextToSize(descripcion, 55);
+        descLines.forEach((linea, i) => {
+          if (i === 0) {
+            doc.text(String(cantidad), 20, y);
+            doc.text(linea, 50, y);
+            doc.text(precio ? `$${precio.toFixed(2)}` : '', 110, y);
+            doc.text(total ? `$${total.toFixed(2)}` : '', 150, y);
+          } else {
+            doc.text('', 20, y + i * 6);
+            doc.text(linea, 50, y + i * 6);
+            doc.text('', 110, y + i * 6);
+            doc.text('', 150, y + i * 6);
+          }
+        });
+        // Dibujar la línea divisoria después de la última línea de la descripción
+        const lineY = y + (descLines.length - 1) * 6 + 2;
+        doc.line(10, lineY, 200, lineY);
+        y += Math.max(10, descLines.length * 6);
+      });
     doc.setFontSize(13);
     doc.text(`Total general: $${totalGeneral.toFixed(2)}`, 150, y + 10);
     doc.text('Recibí(mos) Conforme', 20, 185);
@@ -120,7 +133,7 @@ function App() {
             <span style={{width:'32px'}}></span>
           </div>
           {productos.map((prod, idx) => (
-            <div key={idx} style={{display:'flex', gap:'8px', alignItems:'center', marginBottom:'8px'}}>
+            <div key={idx} className="remito-producto-row">
               <input
                 type="number"
                 name="cantidad"
@@ -130,13 +143,12 @@ function App() {
                 placeholder="Unidades"
                 style={{width:'70px'}}
               />
-              <input
-                type="text"
+              <textarea
                 name="descripcion"
                 value={prod.descripcion}
                 onChange={e => handleProductoChange(idx, e)}
                 placeholder="Producto"
-                style={{width:'120px'}}
+                className="remito-producto-descripcion"
               />
               <input
                 type="number"
