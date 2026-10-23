@@ -53,44 +53,66 @@ function App() {
     doc.text(`Tel: ${form.telefono}`, 20, 66);
     doc.text(`CUIT: ${form.cuit || ''}`, 120, 66);
     doc.line(10, 70, 200, 70);
-    doc.setFontSize(12);
-    doc.text('CANTIDAD', 20, 78);
-    doc.text('DESCRIPCIÓN', 50, 78);
-    doc.text('PRECIO/U', 110, 78);
-    doc.text('TOTAL', 150, 78);
-    doc.line(10, 80, 200, 80);
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const tableBottom = pageHeight - 50;
+    const dibujarEncabezadoTabla = (headerY) => {
+      doc.setFontSize(12);
+      doc.text('CANTIDAD', 20, headerY);
+      doc.text('DESCRIPCIÓN', 50, headerY);
+      doc.text('PRECIO/U', 110, headerY);
+      doc.text('TOTAL', 150, headerY);
+      doc.line(10, headerY + 2, 200, headerY + 2);
+    };
+    dibujarEncabezadoTabla(78);
     let y = 88;
-      productos.forEach((prod) => {
-        const cantidad = prod.cantidad ? prod.cantidad : '';
-        const descripcion = prod.descripcion ? prod.descripcion : '';
-        const precio = prod.precio ? parseFloat(prod.precio) : 0;
-        const total = prod.cantidad && prod.precio ? (parseFloat(prod.cantidad) * precio) : '';
-        // Usar splitTextToSize para dividir la descripción según el ancho disponible (55mm)
-        const descLines = doc.splitTextToSize(descripcion, 55);
-        descLines.forEach((linea, i) => {
-          if (i === 0) {
-            doc.text(String(cantidad), 20, y);
-            doc.text(linea, 50, y);
-            doc.text(precio ? `$${precio.toFixed(2)}` : '', 110, y);
-            doc.text(total ? `$${total.toFixed(2)}` : '', 150, y);
-          } else {
-            doc.text('', 20, y + i * 6);
-            doc.text(linea, 50, y + i * 6);
-            doc.text('', 110, y + i * 6);
-            doc.text('', 150, y + i * 6);
+    productos.forEach((prod) => {
+      const cantidad = prod.cantidad ? prod.cantidad : '';
+      const descripcion = prod.descripcion ? prod.descripcion : '';
+      const precio = prod.precio ? parseFloat(prod.precio) : 0;
+      const total = prod.cantidad && prod.precio ? (parseFloat(prod.cantidad) * precio) : '';
+      const descLines = doc.splitTextToSize(descripcion, 55);
+      let lineIndex = 0;
+      let lastLineY = y;
+
+      while (lineIndex < descLines.length) {
+        if (y > tableBottom) {
+          doc.addPage();
+          dibujarEncabezadoTabla(20);
+          y = 30;
+        }
+
+        const availableLines = Math.floor((tableBottom - y) / 6) + 1;
+        const linesOnPage = Math.min(availableLines, descLines.length - lineIndex);
+        for (let offset = 0; offset < linesOnPage; offset += 1) {
+          const currentLineY = y + offset * 6;
+          if (lineIndex === 0 && offset === 0) {
+            doc.text(String(cantidad), 20, currentLineY);
+            doc.text(precio ? `$${precio.toFixed(2)}` : '', 110, currentLineY);
+            doc.text(total ? `$${total.toFixed(2)}` : '', 150, currentLineY);
           }
-        });
-        // Dibujar la línea divisoria después de la última línea de la descripción
-        const lineY = y + (descLines.length - 1) * 6 + 2;
-        doc.line(10, lineY, 200, lineY);
-        y += Math.max(10, descLines.length * 6);
-      });
+          doc.text(descLines[lineIndex + offset], 50, currentLineY);
+          lastLineY = currentLineY;
+        }
+
+        lineIndex += linesOnPage;
+        y = lastLineY + 6;
+      }
+
+      doc.line(10, lastLineY + 2, 200, lastLineY + 2);
+      y = lastLineY + (descLines.length === 1 ? 10 : 6);
+    });
+
+    let sectionY = y;
+    if (sectionY + 30 > pageHeight - 15) {
+      doc.addPage();
+      sectionY = 20;
+    }
     doc.setFontSize(13);
-    doc.text(`Total general: $${totalGeneral.toFixed(2)}`, 150, y + 10);
-    doc.text('Recibí(mos) Conforme', 20, 185);
-    doc.text('Firma', 120, 185);
-    doc.text('Aclaración', 160, 185);
-    doc.line(10, 190, 200, 190);
+    doc.text(`Total general: $${totalGeneral.toFixed(2)}`, 150, sectionY + 10);
+    doc.text('Recibí(mos) Conforme', 20, sectionY + 25);
+    doc.text('Firma', 120, sectionY + 25);
+    doc.text('Aclaración', 160, sectionY + 25);
+    doc.line(10, sectionY + 30, 200, sectionY + 30);
     const nombreCliente = form.cliente.trim() ? form.cliente.trim().replace(/\s+/g, '_') : 'remito';
     doc.save(`${nombreCliente}.pdf`);
   };
